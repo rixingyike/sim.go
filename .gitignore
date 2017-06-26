@@ -3,6 +3,8 @@
 *.dll
 *.so
 *.dylib
+。gitignore
+*.sh
 
 # Test binary, build with `go test -c`
 *.test
