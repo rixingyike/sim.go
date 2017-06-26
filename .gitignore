@@ -5,6 +5,7 @@
 *.dylib
 。gitignore
 *.sh
+config.ini
 
 # Test binary, build with `go test -c`
 *.test
