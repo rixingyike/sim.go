@@ -11,10 +11,10 @@ import (
 )
 
 type Web struct {
-	*sim.IrisWebEngine
+	*sim.WebEngine
 }
 
-var web = &Web{IrisWebEngine:sim.Web}
+var web = &Web{WebEngine:sim.Web}
 
 func init() {
 }

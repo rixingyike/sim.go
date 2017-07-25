@@ -15,13 +15,17 @@ import (
 
 func init() {
 	type (
-		Blog struct {
+		Joke struct {
 			sim.Model `xorm:"extends"`
 			UserId int64 `json:"user_id"`
 			Title        string `xorm:"char(50)" json:"title"`
+			Content        string `xorm:"text" json:"content"`
+			Image        string `xorm:"tinytext" json:"image"`
+
+			User sim.WeappUser `xorm:"-" json:"user"`
 		}
-		BlogPage struct {
-			List       []Blog `json:"list"`
+		JokePage struct {
+			List       []Joke `json:"list"`
 			Size       int `json:"size"`
 			Page       int `json:"page"`   //自1开始计数
 			Count      int `json:"count"`
@@ -30,14 +34,14 @@ func init() {
 	)
 
 	const URL_BASE = ""
-	const MODEL_NAME = "blog"
+	const MODEL_NAME = "joke"
 
 	if web.DB == nil {
 		return
 	}
 	if web.Config.Debug {
 		if exist,_ := web.DB.IsTableExist(MODEL_NAME); !exist {
-			web.DB.Sync2(new(Blog))
+			web.DB.Sync2(new(Joke))
 		}
 	}
 
@@ -75,7 +79,7 @@ func init() {
 			return
 		}
 
-		var data Blog
+		var data Joke
 		if _, err := web.DB.ID(id).Get(&data); err != nil {
 			r.Code = -2
 			r.Message = "db id.get error"
@@ -101,21 +105,20 @@ func init() {
 		if size == 0 {
 			size = 1000
 		}
-		var data = BlogPage{Page:page,Size:size}
+		var data = JokePage{Page:page,Size:size}
 		var offset = (data.Page - 1) * data.Size
-		var my = web.GetWeappUser(c)
 
-		if err := web.DB.Where("user_id = ?", my.ID).Desc("id").Limit(data.Size, offset).Find(&data.List); err == nil {
-			if total, err := web.DB.Where("user_id = ?", my.ID).Count(new(Blog)); err == nil {
+		if err := web.DB.Desc("id").Limit(data.Size, offset).Find(&data.List); err == nil {
+			if total, err := web.DB.Count(new(Joke)); err == nil {
 				data.Count = int(total)
 				data.TotalPage = int(math.Ceil(float64(total) / float64(data.Size)))
 			}else{
 				sim.Debug("select count err", err.Error())
 			}
-			//for k,v := range data.List{
-			//	web.DB.GetOneById(&v.User,v.UserId)
-			//	data.List[k].User = v.User
-			//}
+			for k,v := range data.List{
+				web.DB.ID(v.UserId).Get(&v.User)
+				data.List[k].User = v.User
+			}
 			r.Code = 1
 			r.Data = data
 		}else{
@@ -129,7 +132,7 @@ func init() {
 	sub.Post(fmt.Sprintf("/%s", MODEL_NAME), func(c *iris.Context) {
 		var r sim.Result
 
-		var data Blog
+		var data Joke
 		if err := c.ReadJSON(&data); err != nil {
 			sim.Debug("read data err", err.Error())
 			r.Code = -1
@@ -165,7 +168,7 @@ func init() {
 			return
 		}
 
-		var data Blog
+		var data Joke
 		if _, err := web.DB.ID(id).Get(&data); err != nil {
 			r.Code = -2
 			r.Message = "not found"
@@ -194,7 +197,7 @@ func init() {
 			return
 		}
 
-		var data Blog
+		var data Joke
 		if _, err := web.DB.ID(id).Get(&data); err != nil {
 			r.Code = -2
 			r.Message = "not found"

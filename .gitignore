@@ -4,9 +4,8 @@
 *.so
 *.dylib
 。gitignore
-*.sh
-config.ini
 gin-bin
+push.sh
 
 # Test binary, build with `go test -c`
 *.test
