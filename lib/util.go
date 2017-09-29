@@ -7,20 +7,42 @@
 package sim
 
 import (
+	"./curl"
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"github.com/BurntSushi/toml"
-	"strings"
-	"encoding/json"
-	"io/ioutil"
-	"net/url"
-	"net/http"
-	"bufio"
-	"io"
-	"net/http/cookiejar"
 	"github.com/Jeffail/gabs"
+	"github.com/kataras/iris"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"os"
+	"strings"
 )
 
+// 测试方法
+func Division(a, b int) int {
+	return 10*a + b
+}
 
+// 从iris中读取form file，保存至本地
+// form中文件名称为file
+func SaveFileToLocalFromForm(ctx iris.Context, localFilePath string) {
+	_, info, _ := ctx.FormFile("file") //iris v6
+	file, _ := info.Open()
+	defer file.Close()
+
+	f, _ := os.OpenFile(localFilePath, os.O_WRONLY|os.O_CREATE, 0666)
+	io.Copy(f, file)
+}
+
+// 返回curl类库的Request对象，使用方法见curl/readme
+func NewRequest() *curl.Request {
+	return curl.NewRequest()
+}
 
 //发起一个post请求,获取字符串内容
 //@values params参数,可以为nil
@@ -41,16 +63,16 @@ func HttpPost(link string, values url.Values, headers map[string]string) (result
 		}
 	}
 
-	jar,_ := cookiejar.New(nil)
+	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
-		Jar:jar,
+		Jar: jar,
 	}
 
 	if headers["Cookie"] != "" {
-		req.Header.Set("Set-Cookie",headers["Cookie"])
+		req.Header.Set("Set-Cookie", headers["Cookie"])
 
-		var url2,_ = url.Parse(link)
-		if cookies,err := ParseCookie(headers["Cookie"]); err == nil{
+		var url2, _ = url.Parse(link)
+		if cookies, err := ParseCookie(headers["Cookie"]); err == nil {
 			client.Jar.SetCookies(url2, cookies)
 		}
 	}
@@ -70,7 +92,7 @@ func HttpPost(link string, values url.Values, headers map[string]string) (result
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		//Debug("http post readall err",err.Error())
-	}else{
+	} else {
 		result = string(body)
 	}
 
@@ -81,9 +103,9 @@ func HttpPost(link string, values url.Values, headers map[string]string) (result
 func HttpGet(link string, values url.Values, headers map[string]string) (result string) {
 	//Debug("link",link)
 	if values != nil && len(values) > 0 {
-		if strings.Contains(link,"?") {
+		if strings.Contains(link, "?") {
 			link += "?" + values.Encode()
-		}else{
+		} else {
 			link += "&" + values.Encode()
 		}
 	}
@@ -98,16 +120,16 @@ func HttpGet(link string, values url.Values, headers map[string]string) (result 
 		}
 	}
 
-	jar,_ := cookiejar.New(nil)
+	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
-		Jar:jar,
+		Jar: jar,
 	}
 
 	if headers["Cookie"] != "" {
-		req.Header.Set("Set-Cookie",headers["Cookie"])
+		req.Header.Set("Set-Cookie", headers["Cookie"])
 
-		var url2,_ = url.Parse(link)
-		if cookies,err := ParseCookie(headers["Cookie"]); err == nil{
+		var url2, _ = url.Parse(link)
+		if cookies, err := ParseCookie(headers["Cookie"]); err == nil {
 			//Debug("client.Jar",client.Jar)
 			client.Jar.SetCookies(url2, cookies)
 		}
@@ -151,7 +173,7 @@ func ToJsonObject(v interface{}) (r interface{}) {
 }
 
 // json string生成
-func ToJson(v interface{}) (result string,err error) {
+func ToJson(v interface{}) (result string, err error) {
 	if bytes, err := json.Marshal(v); err == nil {
 		result = string(bytes)
 	}
@@ -165,7 +187,6 @@ func ParseJson(v interface{}, s string) (err error) {
 	err = json.Unmarshal([]byte(s), v)
 	return
 }
-
 
 // 将动态的json解析为文档对象
 // 参见:https://github.com/Jeffail/gabs

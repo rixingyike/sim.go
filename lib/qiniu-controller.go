@@ -1,35 +1,40 @@
 package sim
 
 import (
+	"encoding/base64"
+	"fmt"
+	"github.com/qiniu/api.v7/auth/qbox"
+	"github.com/qiniu/api.v7/storage"
+	// "github.com/qiniu/x/rpc.v7"
+	"golang.org/x/net/context"
+	"gopkg.in/kataras/iris.v6"
 	"io"
-	"os"
-	"mime/multipart"
 	"io/ioutil"
 	"log"
-	"github.com/qiniu/api.v7/kodo"
+	"mime/multipart"
+	"os"
 	"qiniupkg.com/x/url.v7"
-	"gopkg.in/kataras/iris.v6"
-	"fmt"
-	"encoding/base64"
 )
 
 //QINIU_IMAGE_SCALEMODE = "imageView2/2/w/360"
 type QiniuController struct {
-	Web              *WebEngine
-	Scope     string
+	Web                  *WebEngine
+	Scope                string //bucket
 	AccessKey, SecretKey string
 
-	Watermark string //图片的水印尾缀
-	ServerBase    string //七牛空间的基地址
-	client    *kodo.Client
-	policy *kodo.PutPolicy
+	Watermark  string //图片的水印尾缀
+	ServerBase string //七牛空间的基地址
+	policy     *storage.PutPolicy
+	mac        *qbox.Mac
+	cfg        storage.Config
 }
 
 func (this *QiniuController) Init() {
-	kodo.SetMac(this.AccessKey, this.SecretKey)
-	//创建一个Client
-	var zone = 0 //空间Bucket所在的区域
-	this.client = kodo.New(zone, nil)
+	this.mac = qbox.NewMac(this.AccessKey, this.SecretKey)
+	this.cfg = storage.Config{}
+	this.cfg.Zone = &storage.ZoneHuadong
+	this.cfg.UseHTTPS = false
+	this.cfg.UseCdnDomains = false
 
 	if this.ServerBase == "" {
 		this.ServerBase = "http://7xndm1.com1.z0.glb.clouddn.com"
@@ -37,7 +42,7 @@ func (this *QiniuController) Init() {
 
 	this.Web.Get("/qiniu/uptoken", func(c *iris.Context) {
 		c.JSON(200, H{
-			"uptoken":this.newUptoken(),
+			"uptoken": this.newUptoken(),
 		})
 	})
 
@@ -49,7 +54,7 @@ func (this *QiniuController) Init() {
 
 		if this.Web.Weapp != nil {
 			var imageUrl = this.Web.Weapp.ImageUrlForWeixinMediaId(mediaId)
-			if qiniuImgUrl := this.UploadImageFromUrl(imageUrl,key); qiniuImgUrl != "" {
+			if qiniuImgUrl := this.UploadImageFromUrl(imageUrl, key); qiniuImgUrl != "" {
 				r.Code = 1
 				r.Data = qiniuImgUrl
 			}
@@ -60,15 +65,15 @@ func (this *QiniuController) Init() {
 
 	// 开启给simditor编辑器上传图片的接口
 	this.Web.Post("/qiniu/simditor", func(c *iris.Context) {
-		_,info, _ := c.FormFile("imgfile") //iris v6
+		_, info, _ := c.FormFile("imgfile") //iris v6
 		file, _ := info.Open()
 		defer file.Close()
 
 		var url = this.UploadImageFromForm(file)
 		var r = H{
-			"success":true,
-			"msg":"",
-			"file_path":url,
+			"success":   true,
+			"msg":       "",
+			"file_path": url,
 		}
 		c.JSON(200, r)
 	})
@@ -85,15 +90,20 @@ func (this *QiniuController) UploadImageFromForm(file multipart.File) (path stri
 	_, err = io.Copy(f, file)
 	defer os.Remove(f.Name())
 
-	var localfile = f.Name()
-	var uploader = this.client.Bucket(this.Scope)
-	var ret kodo.PutRet
-	var extra = &kodo.PutExtra{
-		CheckCrc: 0,
+	var localFile = f.Name()
+
+	putPolicy := storage.PutPolicy{
+		Scope: this.Scope,
 	}
-	res := uploader.PutFileWithoutKey(nil, &ret, localfile, extra)
-	if res != nil {
-		log.Println("io.Put failed:", res)
+	upToken := putPolicy.UploadToken(this.mac)
+
+	// 构建表单上传的对象
+	formUploader := storage.NewFormUploader(&this.cfg)
+	ret := storage.PutRet{}
+	// 可选配置
+	putExtra := storage.PutExtra{}
+	err = formUploader.PutFileWithoutKey(context.Background(), &ret, upToken, localFile, &putExtra)
+	if err != nil {
 		path = ""
 	} else {
 		path = this.qiniuImageUrlFromKey(ret.Key)
@@ -103,15 +113,20 @@ func (this *QiniuController) UploadImageFromForm(file multipart.File) (path stri
 
 //从本地上传文件对象至七牛
 func (this *QiniuController) UploadImageFromLocale(f *os.File) (path string) {
-	var localfile = f.Name()
-	var uploader = this.client.Bucket(this.Scope)
-	var ret kodo.PutRet
-	var extra = &kodo.PutExtra{
-		CheckCrc: 0,
+	var localFile = f.Name()
+
+	putPolicy := storage.PutPolicy{
+		Scope: this.Scope,
 	}
-	res := uploader.PutFileWithoutKey(nil, &ret, localfile, extra)
-	if res != nil {
-		log.Println("io.Put failed:", res)
+	upToken := putPolicy.UploadToken(this.mac)
+
+	// 构建表单上传的对象
+	formUploader := storage.NewFormUploader(&this.cfg)
+	ret := storage.PutRet{}
+	// 可选配置
+	putExtra := storage.PutExtra{}
+	err := formUploader.PutFileWithoutKey(context.Background(), &ret, upToken, localFile, &putExtra)
+	if err != nil {
 		path = ""
 	} else {
 		path = this.qiniuImageUrlFromKey(ret.Key)
@@ -120,36 +135,36 @@ func (this *QiniuController) UploadImageFromLocale(f *os.File) (path string) {
 }
 
 //从远程文件上传七牛云存储,key可以传空字符串
-func (this *QiniuController) UploadImageFromUrl(url string,key string) string {
+func (this *QiniuController) UploadImageFromUrl(url string, key string) string {
 	var path string
-	var uploader = this.client.Bucket(this.Scope)
-
 	if key == "" {
 		key = base64.StdEncoding.EncodeToString([]byte(url))
 	}
 
-	var err = uploader.Fetch(nil, key, url)
+	cfg := storage.Config{
+		UseHTTPS: false,
+	}
+	bucketManager := storage.NewBucketManager(this.mac, &cfg)
+	_, err := bucketManager.Fetch(url, this.Scope, key)
 	if err != nil {
-		Debug("io.Put failed:", err.Error())
+		fmt.Println("fetch error,", err)
 	} else {
 		path = this.qiniuImageUrlFromKey(key)
 	}
+
 	return path
 }
 
 func (this *QiniuController) qiniuImageUrlFromKey(key string) string {
-	return fmt.Sprintf("%s/%s",this.ServerBase,url.Escape(key))
+	return fmt.Sprintf("%s/%s", this.ServerBase, url.Escape(key))
 }
 
 func (this *QiniuController) newUptoken() string {
-	//设置上传的策略
-	if this.policy == nil {
-		this.policy = &kodo.PutPolicy{
-			Scope:   this.Scope,
-			//设置Token过期时间
-			Expires: 3600,
-		}
+	putPolicy := storage.PutPolicy{
+		Scope: this.Scope,
 	}
+	putPolicy.Expires = 7200 //示例2小时有效期
 	//生成一个上传token
-	return this.client.MakeUptoken(this.policy);
+	return putPolicy.UploadToken(this.mac)
+
 }
