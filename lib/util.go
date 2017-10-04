@@ -7,13 +7,14 @@
 package sim
 
 import (
-	"./curl"
 	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/Jeffail/gabs"
 	"github.com/kataras/iris"
+	"github.com/rixingyike/sim.go/lib/curl"
+	"github.com/russross/blackfriday"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -22,6 +23,11 @@ import (
 	"os"
 	"strings"
 )
+
+// 将md文本转为html，在pongo2模板中使用safe filter直接渲染html内容
+func Markdown(md string) string {
+	return string(blackfriday.MarkdownBasic([]byte(md)))
+}
 
 // 测试方法
 func Division(a, b int) int {

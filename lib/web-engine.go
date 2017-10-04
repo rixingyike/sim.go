@@ -1,4 +1,5 @@
 /*
+ * 使用iris web engine创建一个web入口，基于配置文件（默认名称为config.ini）
  * author: liyi
  * email: 9830131#qq.com
  * date: 2017/3/21
@@ -6,12 +7,12 @@
 package sim
 
 import (
-	"gopkg.in/kataras/iris.v6"
-	"gopkg.in/kataras/iris.v6/adaptors/httprouter"
-	"gopkg.in/kataras/iris.v6/adaptors/cors"
 	"fmt"
-	"gopkg.in/kataras/iris.v6/adaptors/view"
+	"gopkg.in/kataras/iris.v6"
+	"gopkg.in/kataras/iris.v6/adaptors/cors"
+	"gopkg.in/kataras/iris.v6/adaptors/httprouter"
 	"gopkg.in/kataras/iris.v6/adaptors/sessions"
+	"gopkg.in/kataras/iris.v6/adaptors/view"
 	"os"
 	"strconv"
 )
@@ -20,8 +21,8 @@ type WebEngine struct {
 	*iris.Framework
 	Config Config
 	DB     *DB
-	Weapp *WeappController
-	Qiniu *QiniuController
+	Weapp  *WeappController
+	// Qiniu  *QiniuController
 }
 
 var Web = &WebEngine{}
@@ -29,22 +30,6 @@ var Web = &WebEngine{}
 func init() {
 	fmt.Println("web engine init")
 	Web.Init()
-}
-
-// 获取当前登陆的微信小程序用户
-func (this *WebEngine) GetWeappUser(c *iris.Context) (u WeappUser) {
-	const USER_KEY = "WEAPPUSER"
-	var id = c.RequestHeader("X-WX-Id")
-	Debug("id",id)
-
-	if c.Get(USER_KEY) != nil {
-		u = c.Get(USER_KEY).(WeappUser)
-	}else if id, err := strconv.ParseInt(id,10,64); err == nil {
-		this.DB.ID(id).Get(&u)
-		c.Set(USER_KEY,u)
-	}
-
-	return u
 }
 
 func (this *WebEngine) Init() {
@@ -57,8 +42,8 @@ func (this *WebEngine) Init() {
 	// 无论是以gin热编译,还是直接启动,都能从程序执行的当前目录找到config.ini
 	if err := ReadTomlConfig(&this.Config, confileFile); err == nil {
 		this.Log("已读取配置文件")
-		//this.Log("config", ToMapObject(this.Config))
-	}else{
+		Debug("config", ToJsonObject(this.Config))
+	} else {
 		panic(err)
 	}
 
@@ -71,27 +56,27 @@ func (this *WebEngine) Init() {
 	// 开始CORS跨域支持
 	if this.Config.Cors.Enable {
 		this.Framework.Adapt(cors.New(cors.Options{
-			AllowedOrigins: []string{"*"},
-			AllowCredentials:true,
+			AllowedOrigins:   []string{"*"},
+			AllowCredentials: true,
 		}))
 	}
 
 	// 初始化数据库
 	if this.Config.Mysql.Enable {
-		this.DB = &DB{ShowSql:this.Config.Debug,DataSource:this.Config.Mysql.DataSource, DriverName:DB_DRIVER_MYSQL}
+		this.DB = &DB{ShowSql: this.Config.Debug, DataSource: this.Config.Mysql.DataSource, DriverName: DB_DRIVER_MYSQL}
 		this.DB.Init()
-	}else if this.Config.Sqlite3.Enable {
+	} else if this.Config.Sqlite3.Enable {
 		Debug("init sqlite3 db")
-		this.DB = &DB{ShowSql:this.Config.Debug,DataSource:this.Config.Sqlite3.Filepath, DriverName:DB_DRIVER_SQLITE3}
+		this.DB = &DB{ShowSql: this.Config.Debug, DataSource: this.Config.Sqlite3.Filepath, DriverName: DB_DRIVER_SQLITE3}
 		this.DB.Init()
 	}
 
 	// 启用小程序用户自动登陆
 	if this.DB != nil && this.Config.Weapp.Enable {
-		if exist,_ := this.DB.IsTableExist(new(WeappUser)); !exist {
+		if exist, _ := this.DB.IsTableExist(new(WeappUser)); !exist {
 			this.DB.Sync2(new(WeappUser))
 		}
-		this.Weapp = &WeappController{Web:this,AppId:this.Config.Weapp.AppId,AppSecret:this.Config.Weapp.AppSecret}
+		this.Weapp = &WeappController{Web: this, AppId: this.Config.Weapp.AppId, AppSecret: this.Config.Weapp.AppSecret}
 		this.Weapp.Init()
 	}
 
@@ -115,15 +100,15 @@ func (this *WebEngine) Init() {
 	}
 
 	// 启用七牛图片上传
-	if this.Config.Qiniu.Enable {
-		var qs = this.Config.Qiniu
-		this.Qiniu = &QiniuController{Web:this,Scope:qs.Scope,AccessKey:qs.AccessKey,SecretKey:qs.SecretKey,ServerBase:qs.ServerBase,Watermark:qs.Watermark}
-		this.Qiniu.Init()
-	}
+	// if this.Config.Qiniu.Enable {
+	// 	var qs = this.Config.Qiniu
+	// 	this.Qiniu = &QiniuController{Web: this, Scope: qs.Scope, AccessKey: qs.AccessKey, SecretKey: qs.SecretKey, ServerBase: qs.ServerBase, Watermark: qs.Watermark}
+	// 	this.Qiniu.Init()
+	// }
 
 	this.Any("/hi", func(c *iris.Context) {
 		if user := this.GetWeappUser(c); user.ID > 0 {
-			c.WriteString(fmt.Sprintf("hi,%s",user.Nickname))
+			c.WriteString(fmt.Sprintf("hi,%s", user.Nickname))
 			return
 		}
 		c.WriteString("hi,sim.go")
@@ -138,4 +123,61 @@ func (this *WebEngine) Log(v ...interface{}) {
 	if this.Config.Debug {
 		Debug(v...)
 	}
+}
+
+// 获取当前登陆的微信小程序用户
+func (this *WebEngine) GetWeappUser(c *iris.Context) (u WeappUser) {
+	const USER_KEY = "WEAPPUSER"
+	var id = c.RequestHeader("X-WX-Id")
+	//Debug("id",id)
+
+	if c.Get(USER_KEY) != nil {
+		u = c.Get(USER_KEY).(WeappUser)
+	} else if id, err := strconv.ParseInt(id, 10, 64); err == nil {
+		this.DB.ID(id).Get(&u)
+		c.Set(USER_KEY, u)
+	}
+
+	return u
+}
+
+// 查取session对象
+func (this *WebEngine) GetSession(c *iris.Context, name string) interface{} {
+	return c.Session().Get(name)
+}
+
+// 设置session
+func (this *WebEngine) SetSession(c *iris.Context, name string, val interface{}) {
+	c.Session().Set(name, val)
+}
+
+// 删除session
+func (this *WebEngine) DeleteSession(c *iris.Context, name string) {
+	c.Session().Delete(name)
+}
+
+// 获取user session
+func (this *WebEngine) GetUser(c *iris.Context) interface{} {
+	return c.Session().Get(this.Config.Session.SessionName)
+}
+
+// 设置user session, sessionName来自config
+func (this *WebEngine) SetUser(c *iris.Context, val interface{}) {
+	c.Session().Set(this.Config.Session.SessionName, val)
+}
+
+// 删除user session
+func (this *WebEngine) DeleteUser(c *iris.Context) {
+	c.Session().Delete(this.Config.Session.SessionName)
+}
+
+// 显示消息提示页,需要一个message.html模板配合使用
+func (this *WebEngine) ShowMessage(c *iris.Context, success bool, title, desc, link string) {
+	var data = map[string]interface{}{
+		"success": success,
+		"title":   title,
+		"desc":    desc,
+		"link":    link,
+	}
+	c.Render("message.html", data)
 }
