@@ -7,7 +7,7 @@
 package sim
 
 import (
-	"./curl"
+	"github.com/rixingyike/sim.go/lib/curl"
 	"bufio"
 	"encoding/json"
 	"fmt"
