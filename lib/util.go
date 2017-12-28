@@ -7,7 +7,6 @@
 package sim
 
 import (
-	"github.com/rixingyike/sim.go/lib/curl"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -40,8 +39,8 @@ func SaveFileToLocalFromForm(ctx iris.Context, localFilePath string) {
 }
 
 // 返回curl类库的Request对象，使用方法见curl/readme
-func NewRequest() *curl.Request {
-	return curl.NewRequest()
+func NewRequest() *Request {
+	return &Request{}
 }
 
 //发起一个post请求,获取字符串内容
