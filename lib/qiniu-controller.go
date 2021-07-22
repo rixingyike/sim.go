@@ -3,17 +3,18 @@ package sim
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/qiniu/api.v7/auth/qbox"
-	"github.com/qiniu/api.v7/storage"
-	// "github.com/qiniu/x/rpc.v7"
+	"github.com/qiniu/api.v7/v7/auth/qbox"
+	"github.com/qiniu/api.v7/v7/storage"
 	"golang.org/x/net/context"
-	"gopkg.in/kataras/iris.v6"
+	"github.com/kataras/iris/v12"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"log"
 	"mime/multipart"
 	"os"
-	"qiniupkg.com/x/url.v7"
+	// "qiniupkg.com/x/url.v7"
+	// "github.com/qiniu/api.v7"
 )
 
 //QINIU_IMAGE_SCALEMODE = "imageView2/2/w/360"
@@ -40,16 +41,16 @@ func (this *QiniuController) Init() {
 		this.ServerBase = "http://7xndm1.com1.z0.glb.clouddn.com"
 	}
 
-	this.Web.Get("/qiniu/uptoken", func(c *iris.Context) {
-		c.JSON(200, H{
+	this.Web.Framework.Get("/qiniu/uptoken", func(c iris.Context) {
+		c.JSON(H{
 			"uptoken": this.newUptoken(),
 		})
 	})
 
 	// 从微信接口上传取到的mediaid,上传至七牛空间,支持自定义key
-	this.Web.Post("/qiniu/weixin/:mediaid", func(c *iris.Context) {
+	this.Web.Framework.Post("/qiniu/weixin/{mediaid}", func(c iris.Context) {
 		var r Result
-		var mediaId = c.Param("mediaid")
+		var mediaId = c.Params().Get("mediaid")// c.Param("mediaid")
 		var key = c.URLParam("key")
 
 		if this.Web.Weapp != nil {
@@ -60,11 +61,11 @@ func (this *QiniuController) Init() {
 			}
 		}
 
-		c.JSON(200, r)
+		c.JSON(r)
 	})
 
 	// 开启给simditor编辑器上传图片的接口
-	this.Web.Post("/qiniu/simditor", func(c *iris.Context) {
+	this.Web.Framework.Post("/qiniu/simditor", func(c iris.Context) {
 		_, info, _ := c.FormFile("imgfile") //iris v6
 		file, _ := info.Open()
 		defer file.Close()
@@ -75,7 +76,7 @@ func (this *QiniuController) Init() {
 			"msg":       "",
 			"file_path": url,
 		}
-		c.JSON(200, r)
+		c.JSON(r)
 	})
 }
 
@@ -156,7 +157,7 @@ func (this *QiniuController) UploadImageFromUrl(url string, key string) string {
 }
 
 func (this *QiniuController) qiniuImageUrlFromKey(key string) string {
-	return fmt.Sprintf("%s/%s", this.ServerBase, url.Escape(key))
+	return fmt.Sprintf("%s/%s", this.ServerBase, url.QueryEscape(key))
 }
 
 func (this *QiniuController) newUptoken() string {

@@ -7,14 +7,14 @@
 package sim
 
 import (
-	"gopkg.in/kataras/iris.v6"
+	"github.com/kataras/iris/v12"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
+	// "net/http"
 	"time"
 )
 
@@ -62,9 +62,9 @@ type (
 )
 
 func (this *WeappController) Init() {
-	this.Web.Get("/weapp/login", func(c *iris.Context) {
+	this.Web.Framework.Get("/weapp/login", func(c iris.Context) {
 		var r Result
-		var code, encryptedData, iv = this.getLoginArgsFromHeader(c.Request.Header)
+		var code, encryptedData, iv = this.getLoginArgsFromHeader(c)
 		var session = this.retrieveSession(code)
 		//Debug("weapp login args",code, encryptedData, iv, session)
 
@@ -82,7 +82,7 @@ func (this *WeappController) Init() {
 			r.Code = -1
 		}
 
-		c.JSON(200, r)
+		c.JSON(r)
 	})
 }
 
@@ -117,10 +117,10 @@ func (this *WeappController) getAccessToken() (result string) {
 }
 
 // 从请求头中获取小程序登陆的参数
-func (this *WeappController) getLoginArgsFromHeader(header http.Header) (code, encryptedData, iv string) {
-	code = header.Get("X-WX-Code")
-	encryptedData = header.Get("X-WX-Encrypted-Data")
-	iv = header.Get("X-WX-IV")
+func (this *WeappController) getLoginArgsFromHeader(ctx iris.Context) (code, encryptedData, iv string) {
+	code = ctx.GetHeader("X-WX-Code")
+	encryptedData = ctx.GetHeader("X-WX-Encrypted-Data")
+	iv = ctx.GetHeader("X-WX-IV")
 	return
 }
 

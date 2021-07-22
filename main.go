@@ -4,12 +4,12 @@
  * email: 9830131#qq.com
  * date: 2017/6/26
  */
-package main
+ package main
 
-import (
-	"./controller"
-)
-
-func main()  {
-	controller.Start()
-}
+ import (
+	 "sim.go/controller"
+ )
+ 
+ func main()  {
+	 controller.Start()
+ }

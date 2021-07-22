@@ -7,8 +7,8 @@
 package controller
 
 import (
-	"../lib"
-	"gopkg.in/kataras/iris.v6"
+	"sim.go/lib"
+	"github.com/kataras/iris/v12"
 	"fmt"
 	"math"
 )
@@ -59,19 +59,19 @@ func init() {
 	curl -X PUT -d '{"title":"xxx"}' http://localhost:4000/blog/1
 	*/
 
-	var sub = web.Router
+	var sub iris.Party
 	if URL_BASE != "" {
-		sub = web.Party(URL_BASE)
+		sub = web.Framework.Party(URL_BASE)
 	}
 	// 拉取单条记录
-	sub.Get(fmt.Sprintf("/%s/:id", MODEL_NAME), func(c *iris.Context) {
+	sub.Get(fmt.Sprintf("/%s/{id}", MODEL_NAME), func(c iris.Context) {
 		var r sim.Result
 
-		var id, err = c.ParamInt64("id")
+		var id, err = c.Params().GetInt64("id")
 		if err != nil {
 			r.Code = -1
 			r.Message = "id unvalid"
-			c.JSON(200, r)
+			c.JSON(r.ToMap())
 			return
 		}
 
@@ -79,18 +79,18 @@ func init() {
 		if _, err := web.DB.ID(id).Get(&data); err != nil {
 			r.Code = -2
 			r.Message = "db id.get error"
-			c.JSON(200, r)
+			c.JSON(r.ToMap())
 			return
 		}
 
 		r.Code = 1
 		r.Message = "success"
 		r.Data = data
-		c.JSON(200, r)
+		c.JSON(r.ToMap())
 	})
 
 	// 分页拉取记录,如果没有指定size,拉取所有限1000条以内
-	sub.Get(fmt.Sprintf("/%ss", MODEL_NAME), func(c *iris.Context) {
+	sub.Get(fmt.Sprintf("/%ss", MODEL_NAME), func(c iris.Context) {
 		var r sim.Result
 		var page,_ = c.URLParamInt("page")
 		var size,_ = c.URLParamInt("size")
@@ -122,11 +122,11 @@ func init() {
 			sim.Debug("select page err", err.Error())
 		}
 
-		c.JSON(200, r)
+		c.JSON(r.ToMap())
 	})
 
 	// 新增单条记录
-	sub.Post(fmt.Sprintf("/%s", MODEL_NAME), func(c *iris.Context) {
+	sub.Post(fmt.Sprintf("/%s", MODEL_NAME), func(c iris.Context) {
 		var r sim.Result
 
 		var data Blog
@@ -134,7 +134,7 @@ func init() {
 			sim.Debug("read data err", err.Error())
 			r.Code = -1
 			r.Message = "read data err"
-			c.JSON(200, r)
+			c.JSON(r.ToMap())
 			return
 		}
 
@@ -150,18 +150,18 @@ func init() {
 			sim.Debug("post new bean err",err.Error())
 		}
 
-		c.JSON(200, r)
+		c.JSON(r.ToMap())
 	})
 
 	// 删除单条记录
-	sub.Delete(fmt.Sprintf("/%s/:id", MODEL_NAME), func(c *iris.Context) {
+	sub.Delete(fmt.Sprintf("/%s/{id}", MODEL_NAME), func(c iris.Context) {
 		var r sim.Result
 
-		var id, err = c.ParamInt64("id")
+		var id, err = c.Params().GetInt64("id")
 		if err != nil {
 			r.Code = -1
 			r.Message = "id unvalid"
-			c.JSON(200, r)
+			c.JSON(r.ToMap())
 			return
 		}
 
@@ -169,28 +169,28 @@ func init() {
 		if _, err := web.DB.ID(id).Get(&data); err != nil {
 			r.Code = -2
 			r.Message = "not found"
-			c.JSON(200, r)
+			c.JSON(r.ToMap())
 			return
 		}
 
-		if affected, err := web.DB.Id(id).Delete(&data); err == nil {
+		if affected, err := web.DB.ID(id).Delete(&data); err == nil {
 			if affected > 0 {
 				r.Code = 1
 			}
 		}
 
-		c.JSON(200, r)
+		c.JSON(r.ToMap())
 	})
 
 	// 更新单条记录
-	sub.Put(fmt.Sprintf("/%s/:id", MODEL_NAME), func(c *iris.Context) {
+	sub.Put(fmt.Sprintf("/%s/{id}", MODEL_NAME), func(c iris.Context) {
 		var r sim.Result
 
-		var id, err = c.ParamInt64("id")
+		var id, err = c.Params().GetInt64("id")
 		if err != nil {
 			r.Code = -1
 			r.Message = "id unvalid"
-			c.JSON(200, r)
+			c.JSON(r.ToMap())
 			return
 		}
 
@@ -198,23 +198,23 @@ func init() {
 		if _, err := web.DB.ID(id).Get(&data); err != nil {
 			r.Code = -2
 			r.Message = "not found"
-			c.JSON(200, r)
+			c.JSON(r.ToMap())
 			return
 		}
 
 		if err := c.ReadJSON(&data); err != nil {
 			r.Code = -3
 			r.Message = "read data err"
-			c.JSON(200, r)
+			c.JSON(r.ToMap())
 			return
 		}
 
-		if _, err := web.DB.Id(id).Update(&data); err == nil {
+		if _, err := web.DB.ID(id).Update(&data); err == nil {
 			//如果当前内容与原内容一样,affected会返回0
 			r.Code = 1
 			r.Data = data.ID
 		}
 
-		c.JSON(200, r)
+		c.JSON(r.ToMap())
 	})
 }

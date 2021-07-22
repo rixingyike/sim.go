@@ -2,9 +2,10 @@ package sim
 
 import (
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/go-xorm/core"
-	"github.com/go-xorm/xorm"
+	// sqlite3需要下载gcc支持，在win上
+	// _ "github.com/mattn/go-sqlite3" 
+	"xorm.io/core"
+	"xorm.io/xorm"
 )
 
 const (
