@@ -1,6 +1,8 @@
 # sim.go
 一个快速开发小程序后台接口的工具类库
 
+建议使用v2.0版本：https://github.com/rixingyike/sim.go/tree/v2.0
+
 
 ## 如何使用（旧，不带mod）
 
