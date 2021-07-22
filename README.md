@@ -6,13 +6,15 @@
 建议使用最新的mod特性，方式如下：
 
 ```
-git clone -b v2.0 https://github.com/rixingyike/sim.go.git --depth=1
+git clone -b v2.1 https://github.com/rixingyike/sim.go.git --depth=1
 go env -w GOPROXY=https://goproxy.cn,https://gocenter.io,https://goproxy.io,direct
 export GO111MODULE=on
 cd ./sim.go
 go mod download
 ./debug.sh
 ```
+
+v2.1版本带mod特征，带vendor目录。
 
 2021年7月修改
 
