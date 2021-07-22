@@ -3,7 +3,7 @@
 *.dll
 *.so
 *.dylib
-。gitignore
+.gitignore
 gin-bin
 push.sh
 
