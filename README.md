@@ -7,7 +7,7 @@
 
 ```
 git clone -b v2.1 https://github.com/rixingyike/sim.go.git --depth=1
-go env -w GOPROXY=https://goproxy.cn,https://gocenter.io,https://goproxy.io,direct
+go env -w GOPROXY=https://mirrors.aliyun.com/goproxy/,https://goproxy.cn,https://gocenter.io,https://goproxy.io,direct
 export GO111MODULE=on
 cd ./sim.go
 go mod download
